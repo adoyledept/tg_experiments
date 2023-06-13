@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "terraform"
+    directory: "/environments"
+    schedule:
+      interval: "daily"
+    labels:
+    - "terraform 🏗"
+    - "dependency 🚚"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "actions 🎬"
+      - "dependency 🚚"

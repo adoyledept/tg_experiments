@@ -1,0 +1,101 @@
+
+name: Pipeline 🛠
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to Deploy"
+        type: environment
+        required: true
+      region:
+        type: choice
+        description: Region to deploy to
+        required: true
+        default: 'us-east-1'
+        options: 
+        - us-east-1
+        - global
+      bump:
+        type: choice
+        description: Semantic versioning segment to bump
+        required: true
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
+      reason:
+        description: "Reason for Deploying"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+run-name: ${{ github.workflow }} for ${{ github.event.repository.name }} to ${{ inputs.environment }} by @${{ github.actor }} from ${{ github.ref_name }}
+
+jobs:
+  description:
+    name: Info 📜
+    uses: delvebio/workflows/.github/workflows/info_detail.yml@main
+    with:
+      reason: ${{ inputs.reason }}
+
+  version:
+    name: Version 🆕
+    needs: description
+    uses: delvebio/workflows/.github/workflows/version_bump.yml@main
+    with:
+      bump: ${{ inputs.bump }}
+    secrets:
+      GH_BOT_RELEASE_TOKEN: ${{ secrets.GH_BOT_RELEASE_TOKEN }}
+
+  quality_terraform:
+    name: Quality 🧼
+    needs: version
+    uses: delvebio/workflows/.github/workflows/quality_terraform.yml@main
+
+  test_terraform:
+    name: Test 🧪
+    needs: quality_terraform
+    uses: delvebio/workflows/.github/workflows/test_terraform.yml@main
+
+  plan_terraform:
+    name: Plan 🏗
+    needs: [version, test_terraform]
+    uses: delvebio/workflows/.github/workflows/plan_terraform.yml@main
+    with:
+      environment: ${{ inputs.environment }}
+      region: ${{ inputs.region }}
+      version: ${{ needs.version.outputs.version }}
+    secrets:
+      AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE: ${{ secrets.AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE }}
+
+  apply_terraform:
+    name: Apply 🛫
+    needs: [version, plan_terraform]
+    uses: delvebio/workflows/.github/workflows/apply_terraform.yml@main
+    with:
+      environment: ${{ inputs.environment }}
+      region: ${{ inputs.region }}
+      version: ${{ needs.version.outputs.version }}
+    secrets:
+      AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE: ${{ secrets.AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE }}
+
+  publish:
+    name: Publish 🚀
+    needs: [version, apply_terraform]
+    uses: delvebio/workflows/.github/workflows/publish_release.yml@main
+    with:
+      version: ${{ needs.version.outputs.version }}
+      release_artifact_name: tfplan_out
+    secrets:
+      GH_BOT_RELEASE_TOKEN: ${{ secrets.GH_BOT_RELEASE_TOKEN }}
+
+  summary:
+    name: Info 📜
+    needs: [version, publish]
+    uses: delvebio/workflows/.github/workflows/info_completion.yml@main
+    with:
+      version: ${{ needs.version.outputs.version }}

@@ -1,0 +1,103 @@
+name: Deploy 🛫
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      region:
+        required: true
+        type: string
+    secrets:
+      AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE:
+        required: true
+
+env:
+  working-dir: environments/${{ inputs.environment }}/${{ inputs.region }}/infra
+
+jobs:
+  tf_plan:
+    name: Terraform Plan 🧰
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ inputs.environment }}
+      url: 'https://d-9067af783c.awsapps.com/start'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+  
+    - name: Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.4.4
+    
+    - name: Install Terragrunt
+      run: |
+        wget https://github.com/gruntwork-io/terragrunt/releases/download/v0.45.0/terragrunt_linux_amd64
+        chmod +x terragrunt_linux_amd64
+        sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
+    
+    - name: Authenticate to AWS
+      uses: aws-actions/configure-aws-credentials@main
+      with:
+        aws-region: ${{ inputs.region }}
+        role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE }}
+        role-session-name: InfrastructureTerraformSession
+
+    - name: Terragrunt Plan
+      working-directory: ${{ env.working-dir }}
+      run: terragrunt plan -out $(pwd)/tfplan_bin --terragrunt-non-interactive 2>&1 | tee $(pwd)/tfplan_out
+      shell: bash
+    
+    - name: Archive tfplan binary artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: tfplan_bin
+        path: ${{ env.working-dir }}/tfplan_bin
+
+    - name: Archive tfplan human-readable artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: tfplan_out
+        path: ${{ env.working-dir }}/tfplan_out
+
+  tf_apply:
+    name: Terraform Apply 
+    runs-on: ubuntu-latest
+    needs: tf_plan
+    environment: 
+      name: ${{ inputs.environment }}
+      url: 'https://d-9067af783c.awsapps.com/start'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    - name: Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.4.4
+    
+    - name: Install Terragrunt
+      run: |
+        wget https://github.com/gruntwork-io/terragrunt/releases/download/v0.45.0/terragrunt_linux_amd64
+        chmod +x terragrunt_linux_amd64
+        sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
+    
+    - name: Authenticate to AWS
+      uses: aws-actions/configure-aws-credentials@main
+      with:
+        aws-region: ${{ inputs.region }}
+        role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE }}
+        role-session-name: InfrastructureTerraformSession
+    
+    - uses: actions/download-artifact@v3
+      with:
+        name: tfplan_bin
+        path: ${{ env.working-dir }}
+
+    - name: Terragrunt Apply
+    # hardcoded for now - will make a dynamic path when the structure and pipeline are solidified
+      working-directory: ${{ env.working-dir }}
+      run: terragrunt apply tfplan_bin --terragrunt-non-interactive
+      shell: bash
