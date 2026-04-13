@@ -51,13 +51,13 @@ jobs:
       shell: bash
     
     - name: Archive tfplan binary artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: tfplan_bin
         path: ${{ env.working-dir }}/tfplan_bin
 
     - name: Archive tfplan human-readable artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: tfplan_out
         path: ${{ env.working-dir }}/tfplan_out
