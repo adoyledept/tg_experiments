@@ -25,7 +25,7 @@ jobs:
       url: 'https://d-9067af783c.awsapps.com/start'
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
   
     - name: Terraform
       uses: hashicorp/setup-terraform@v2
@@ -71,7 +71,7 @@ jobs:
       url: 'https://d-9067af783c.awsapps.com/start'
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
     
     - name: Terraform
       uses: hashicorp/setup-terraform@v2
