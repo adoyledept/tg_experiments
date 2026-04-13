@@ -91,7 +91,7 @@ jobs:
         role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_INFRASTRUCTURE_ROLE }}
         role-session-name: InfrastructureTerraformSession
     
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v8
       with:
         name: tfplan_bin
         path: ${{ env.working-dir }}
